@@ -1,0 +1,83 @@
+#!/bin/sh
+script_dir="$(dirname "$0")"
+if [ -d "$script_dir/providers" ]; then
+    # Mode developpement / clone git
+    PROVIDERS_DIR="$script_dir/providers"
+elif [ -d "/usr/share/ani-cli-fr/providers" ]; then
+    # Mode package systeme (AUR, etc.)
+    PROVIDERS_DIR="/usr/share/ani-cli-fr/providers"
+elif [ -d "/usr/local/share/ani-cli-fr/providers" ]; then
+    # Mode installation manuelle
+    PROVIDERS_DIR="/usr/local/share/ani-cli-fr/providers"
+else
+    echo "Erreur : dossier 'providers' introuvable." >&2
+    echo "Reinstallez ani-cli-fr ou verifiez votre installation." >&2
+    exit 1
+fi
+
+. "$PROVIDERS_DIR/common.sh"
+. "$PROVIDERS_DIR/animesama.sh"
+. "$PROVIDERS_DIR/voiranime.sh"
+
+version_number="0.1.0"
+lang="vostfr"
+
+while [ $# -gt 0 ]; do
+    case "$1" in
+        --vf|-vf) lang="vf" ; shift ;;
+        --vostfr|-vostfr) lang="vostfr" ; shift ;;
+        --help|-h)
+            echo "Usage: ani-cli-fr [--vf|--vostfr|--update] <anime>"
+            echo "Version: $version_number"
+            echo ""
+            echo "  --vf       Version francaise"
+            echo "  --vostfr   VOSTFR (defaut)"
+            echo "  --update   Met a jour ani-cli-fr"
+            echo "  --help     Affiche cette aide"
+            exit 0 ;;
+        --update|-u)
+            update_ani_cli_fr "$script_dir"
+            exit 0 ;;
+        *) break ;;
+    esac
+done
+
+query="$*"
+
+while true; do
+    if [ -z "$query" ]; then
+        # Menu d'accueil : Reprendre (si historique) / Rechercher / Quitter
+        menu="Rechercher un anime
+Quitter"
+        if [ -f "$HISTORY_FILE" ]; then
+            menu="Reprendre
+$menu"
+        fi
+        choice=$(echo "$menu" | fzf_select "ani-cli-fr : ")
+        case "$choice" in
+            "Reprendre")
+                hist_line=$(resume_menu)
+                [ -z "$hist_line" ] && continue
+                prov=$(echo "$hist_line" | cut -d'|' -f1)
+                if [ "$prov" = "animesama" ]; then
+                    resume_animesama "$hist_line"
+                else
+                    resume_voiranime "$hist_line"
+                fi
+                continue ;;
+            "Rechercher un anime")
+                printf "Rechercher un anime : "
+                read -r query ;;
+            *)
+                exit 0 ;;
+        esac
+    fi
+    [ -z "$query" ] && continue
+    echo "Recherche de : $query"
+    search_animesama "$query" "$lang"
+    code=$?
+    if [ "$code" -eq 1 ]; then
+        search_voiranime "$query" "$lang"
+    fi
+    query=""
+done

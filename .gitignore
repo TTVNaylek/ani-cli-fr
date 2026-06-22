@@ -1,0 +1,8 @@
+# Fichiers systeme
+.DS_Store
+Thumbs.db
+
+# Fichiers editeur
+*.swp
+*~
+.vscode/
