@@ -1,3 +1,5 @@
+#!/bin/sh
+
 play_voiranime_episode() {
     page=$(curl -sL "$1")
     echo "Lecteur 1 en cours..."
