@@ -1,3 +1,5 @@
+#!/bin/sh
+
 play_animesama_episode() {
     vidmoly_url="$1"
     sibnet_url="$2"

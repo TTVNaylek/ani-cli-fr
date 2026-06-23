@@ -1,3 +1,5 @@
+#!/bin/sh
+
 encode_title() {
     echo "$1" | tr ' ' '+'
 }
@@ -174,7 +176,7 @@ Non"
             rm -f "$HISTORY_FILE"
             echo "Historique nettoye."
             ;;
-        "Non", *)
+        "Non" | *)
             echo "Annulation de la suppression de l'historique."
             ;;
     esac
