@@ -51,6 +51,7 @@ while true; do
 Quitter"
         if [ -f "$HISTORY_FILE" ]; then
             menu="Reprendre
+Nettoyer l'historique
 $menu"
         fi
         choice=$(echo "$menu" | fzf_select "ani-cli-fr : ")
@@ -68,6 +69,9 @@ $menu"
             "Rechercher un anime")
                 printf "Rechercher un anime : "
                 read -r query ;;
+            "Nettoyer l'historique")
+                clear_history
+                continue ;;
             *)
                 exit 0 ;;
         esac

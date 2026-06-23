@@ -163,3 +163,19 @@ extract_ep_num() {
     esc=$(printf '\033')
     echo "$1" | sed "s/${esc}\[[0-9]*m//g" | awk '{print $2}'
 }
+
+clear_history(){
+    clear_menu="Oui
+Non"
+    clear_choice=$(echo "$clear_menu" | fzf_select "Etes-vous sur de vider votre historique ? : ")
+
+    case "$clear_choice" in
+        "Oui")
+            rm -f "$HISTORY_FILE"
+            echo "Historique nettoye."
+            ;;
+        "Non", *)
+            echo "Annulation de la suppression de l'historique."
+            ;;
+    esac
+}
