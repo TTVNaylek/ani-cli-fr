@@ -11,8 +11,6 @@ fzf_select() {
 # Lecteur vidmoly : extrait le m3u8 depuis une URL embed et lance mpv.
 play_vidmoly() {
     embed_url=$(echo "$1" | sed 's/vidmoly\.to/vidmoly.biz/g')
-
-    embed_url=$(${1//vidmoly\.to/vidmoly.biz/g})
     stream_url=$(curl -sL "$embed_url" | grep -o "https://prx[^']*master\.m3u8[^']*" | head -1)
     if [ -n "$stream_url" ]; then
         mpv "$stream_url"
