@@ -19,7 +19,7 @@ fi
 . "$PROVIDERS_DIR/animesama.sh"
 . "$PROVIDERS_DIR/voiranime.sh"
 
-version_number="0.1.1"
+version_number="0.2.0"
 lang="vostfr"
 
 while [ $# -gt 0 ]; do
