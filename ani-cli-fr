@@ -19,7 +19,7 @@ fi
 . "$PROVIDERS_DIR/animesama.sh"
 . "$PROVIDERS_DIR/voiranime.sh"
 
-version_number="0.3.0"
+version_number="0.3.1"
 lang="vostfr"
 
 while [ $# -gt 0 ]; do
@@ -33,7 +33,11 @@ while [ $# -gt 0 ]; do
             echo "  --vf       Version francaise"
             echo "  --vostfr   VOSTFR (defaut)"
             echo "  --update   Met a jour ani-cli-fr"
+            echo "  --change-log   Affiche le journal des modifications"
             echo "  --help     Affiche cette aide"
+            exit 0 ;;
+        --change-log)
+            xdg-open https://github.com/TTVNaylek/ani-cli-fr/releases
             exit 0 ;;
         --update|-u)
             update_ani_cli_fr "$script_dir"
@@ -54,7 +58,7 @@ Quitter"
 Nettoyer l'historique
 $menu"
         fi
-        choice=$(echo "$menu" | fzf_select "ani-cli-fr : ")
+        choice=$(echo "$menu" | fzf_select "ani-cli-fr v$version_number: ")
         case "$choice" in
             "Reprendre")
                 hist_line=$(resume_menu)
