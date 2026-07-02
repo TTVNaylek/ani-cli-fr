@@ -28,12 +28,10 @@ animesama_play_loop() {
         vidmoly_url=$(echo "$vidmoly_list" | sed -n "${ep_num}p")
         sibnet_url=$(echo "$sibnet_list" | sed -n "${ep_num}p")
         echo "Lecture de l'episode $ep_num..."
-        #play_animesama_episode "$vidmoly_url" "$sibnet_url"
-        #mark_as_watched "${id_prefix}|${ep_num}" "$selected"
 
-        if play_animesama_episode "$vidmoly_url" "$sibnet_url"; then
-            mark_as_watched "${id_prefix}|${ep_num}" "$selected"
-        fi
+        play_animesama_episode "$vidmoly_url" "$sibnet_url"
+        handle_play_result "$?" "$id_prefix" "$ep_num" "$selected"
+        if [ "$?" -eq 1 ]; then return 1; fi
 
         action=$(post_play_menu "$ep_num" "$ep_count")
         case "$action" in

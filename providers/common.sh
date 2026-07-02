@@ -181,3 +181,18 @@ Non"
             ;;
     esac
 }
+
+handle_play_result(){
+    lect_result="$1"
+    id_prefix="$2"
+    ep_num="$3"
+    selected="$4"
+
+    if [ "$lect_result" -eq 0 ]; then
+        mark_as_watched "${id_prefix}|${ep_num}" "$selected"
+        return 0
+    else
+        echo "Aucun lecteur disponible."
+        return 1
+    fi
+}

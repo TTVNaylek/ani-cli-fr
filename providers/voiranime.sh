@@ -27,12 +27,10 @@ voiranime_play_loop() {
     while true; do
         ep_url=$(echo "$ep_urls" | sed -n "${ep_num}p" | awk '{print $2}')
         echo "Lecture de l'episode $ep_num..."
-        #play_voiranime_episode "$ep_url"
-        #mark_as_watched "${id_prefix}|${ep_num}" "$selected"
-        
-        if play_voiranime_episode "$ep_url"; then
-            mark_as_watched "${id_prefix}|${ep_num}" "$selected"
-        fi
+
+        play_voiranime_episode "$ep_url"
+        handle_play_result "$?" "$id_prefix" "$ep_num" "$selected"
+        if [ "$?" -eq 1 ]; then return 1; fi
 
         action=$(post_play_menu "$ep_num" "$ep_count")
         case "$action" in
