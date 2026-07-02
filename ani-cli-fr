@@ -81,7 +81,9 @@ $menu"
     search_animesama "$query" "$lang"
     code=$?
     if [ "$code" -eq 1 ]; then
+    echo "Basculement sur un autre fournisseur"
         search_voiranime "$query" "$lang"
     fi
+    echo "Aucun fournisseur disponible. Veuillez reessayer plus tard."
     query=""
 done
