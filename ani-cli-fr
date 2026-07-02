@@ -19,7 +19,7 @@ fi
 . "$PROVIDERS_DIR/animesama.sh"
 . "$PROVIDERS_DIR/voiranime.sh"
 
-version_number="0.3.1"
+version_number="0.3.2"
 lang="vostfr"
 
 while [ $# -gt 0 ]; do
@@ -27,7 +27,7 @@ while [ $# -gt 0 ]; do
         --vf|-vf) lang="vf" ; shift ;;
         --vostfr|-vostfr) lang="vostfr" ; shift ;;
         --help|-h)
-            echo "Usage: ani-cli-fr [--vf|--vostfr|--update] <anime>"
+            echo "Usage: ani-cli-fr [--vf|--vostfr|--update|--change-log] <anime>"
             echo "Version: $version_number"
             echo ""
             echo "  --vf       Version francaise"
@@ -37,7 +37,13 @@ while [ $# -gt 0 ]; do
             echo "  --help     Affiche cette aide"
             exit 0 ;;
         --change-log)
-            xdg-open https://github.com/TTVNaylek/ani-cli-fr/releases
+            if command -v xdg-open >/dev/null 2>&1; then
+                xdg-open "https://github.com/TTVNaylek/ani-cli-fr/releases"
+            elif command -v open >/dev/null 2>&1; then
+                open "https://github.com/TTVNaylek/ani-cli-fr/releases"
+            else
+                echo "Releases : https://github.com/TTVNaylek/ani-cli-fr/releases"
+            fi
             exit 0 ;;
         --update|-u)
             update_ani_cli_fr "$script_dir"
