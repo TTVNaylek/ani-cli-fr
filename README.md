@@ -6,7 +6,7 @@ Un outil en ligne de commande pour rechercher et regarder des animés en **VF** 
 
 - **Recherche multi-sources** : interroge `anime-sama` puis `voir-anime` en secours
 - **Fallback automatique** : si une source ne trouve rien, l'autre prend le relais sans intervention
-- **Cascade de lecteurs** : essaie plusieurs hébergeurs (vidmoly, sibnet, mail.ru, streamtape) jusqu'à en trouver un qui fonctionne
+- **Cascade de lecteurs** : essaie plusieurs hébergeurs (ansembed, uqload, streamtape, smoothpre, sibnet…) jusqu'à en trouver un qui fonctionne
 - **VF / VOSTFR** : choix de la langue via un simple flag
 - **Historique de visionnage** : les épisodes déjà vus sont marqués `✓ Vu` en couleur
 - **Reprise** : reprends un animé là où tu t'étais arrêté depuis le menu d'accueil
@@ -88,11 +88,20 @@ ani-cli-fr --help
 |--------|-------------|
 | `--vf`, `-vf` | Recherche en version française |
 | `--vostfr`, `-vostfr` | Recherche en VOSTFR (par défaut) |
+| `--update`, `-u` | Met à jour ani-cli-fr |
+| `--change-log` | Ouvre le journal des modifications |
 | `--help`, `-h` | Affiche l'aide |
 
 ### Navigation
 
 Les menus se naviguent avec `fzf` : flèches ou frappe au clavier pour filtrer, `Entrée` pour valider, `Échap` pour annuler.
+
+## Tests
+
+```sh
+sh tests/run.sh           # tests hors ligne (parsing, lecteurs, historique)
+sh tests/run.sh --online  # + verifie que les sites et lecteurs repondent encore
+```
 
 ## Compatibilité
 

@@ -1,35 +1,52 @@
 #!/bin/sh
 
-play_animesama_episode() {
-    vidmoly_url="$1"
-    sibnet_url="$2"
-    if [ -n "$vidmoly_url" ]; then
-        echo "Lecteur 1 en cours..."
-        if play_vidmoly "$vidmoly_url"; then return 0 ; fi
-        echo "Echec lecteur 1."
-    fi
-    if [ -n "$sibnet_url" ]; then
-        echo "Lecteur 2 en cours..."
-        if play_ytdlp "$sibnet_url" "https://video.sibnet.ru/"; then return 0 ; fi
-        echo "Echec lecteur 2."
-    fi
-    echo "Aucun lecteur disponible pour cet episode."
-    return 1
+AS_BASE="https://anime-sama.to"
+
+# Liste les lecteurs d'une saison. $1 = url de la saison (avec / final).
+# Sortie : une ligne "numero_episode<TAB>url_embed" par lecteur.
+animesama_episodes() {
+    # Sans Referer, Cloudflare bloque episodes.js.
+    http_get "${1}episodes.js" "$1" | awk -v q="'" '
+        /var eps[0-9]+/ { n = 0 }
+        {
+            line = $0
+            sub(/^[ \t]+/, "", line)
+            if (substr(line, 1, 2) == "//") next
+            while (match(line, q "https?://[^" q "]+" q)) {
+                n++
+                print n "\t" substr(line, RSTART + 1, RLENGTH - 2)
+                line = substr(line, RSTART + RLENGTH)
+            }
+        }'
+}
+
+# Page de recherche (stdin) -> une ligne "nom<TAB>/catalogue/slug/" par resultat.
+animesama_parse_search() {
+    grep -o 'data-url="[^"]*" data-cat="[^"]*" data-nom="[^"]*"' | awk -F'"' '{
+        nom = $6
+        gsub(/^ +| +$/, "", nom)
+        gsub(/&#0?39;/, "\047", nom); gsub(/&quot;/, "\"", nom); gsub(/&amp;/, "\\&", nom)
+        print nom "\t" $2
+    }'
+}
+
+# Page d'un anime (stdin) -> une ligne "nom<TAB>chemin" par saison,
+# sans les exemples commentes du site.
+animesama_parse_saisons() {
+    grep -o 'panneauAnime("[^"]*", *"[^"]*")' | grep -v -e '("nom"' -e '"url")' | awk -F'"' '{ print $2 "\t" $4 }'
 }
 
 animesama_play_loop() {
-    vidmoly_list="$1"
-    sibnet_list="$2"
-    ep_count="$3"
-    ep_num="$4"
-    id_prefix="$5"
-    selected="$6"
+    eps_table="$1"
+    ep_count="$2"
+    ep_num="$3"
+    id_prefix="$4"
+    selected="$5"
     while true; do
-        vidmoly_url=$(echo "$vidmoly_list" | sed -n "${ep_num}p")
-        sibnet_url=$(echo "$sibnet_list" | sed -n "${ep_num}p")
+        sources=$(echo "$eps_table" | awk -F'\t' -v n="$ep_num" '$1 == n { print $2 }')
         echo "Lecture de l'episode $ep_num..."
 
-        play_animesama_episode "$vidmoly_url" "$sibnet_url"
+        play_sources "$sources" "$selected - Episode $ep_num"
         handle_play_result "$?" "$id_prefix" "$ep_num" "$selected"
         if [ "$?" -eq 1 ]; then return 1; fi
 
@@ -44,58 +61,43 @@ animesama_play_loop() {
     done
 }
 
+# $1 = slug, $2 = chemin saison (ex: saison1/vostfr), $3 = titre
+animesama_pick_episode() {
+    eps_table=$(animesama_episodes "$AS_BASE/catalogue/$1/$2/")
+    ep_count=$(echo "$eps_table" | awk -F'\t' '$1 > m { m = $1 } END { print m + 0 }')
+    if [ "$ep_count" -eq 0 ]; then echo "Aucun episode trouve sur anime-sama ($2)." ; return 1 ; fi
+
+    id_prefix="animesama|$1|$2"
+    ep_selected=$(build_episode_list "$ep_count" "$id_prefix" | fzf_select_ansi "Selectionnez un episode : ")
+    if [ -z "$ep_selected" ]; then return 2 ; fi
+    ep_num=$(extract_ep_num "$ep_selected")
+
+    animesama_play_loop "$eps_table" "$ep_count" "$ep_num" "$id_prefix" "$3"
+}
+
 search_animesama() {
     title="$1"
     lang="$2"
-    html=$(curl -s "https://anime-sama.to/catalogue/?search=$(encode_title "$title")")
-    results=$(echo "$html" | grep "card-title" | sed 's/<h2 class="card-title">//g' | sed 's/<\/h2>//g' | sed 's/^[[:space:]]*//' | sed 's/[[:space:]]*$//')
+    results=$(curl -sL --connect-timeout 10 -m 30 -A "$UA" -G --data-urlencode "search=$title" "$AS_BASE/catalogue/" | animesama_parse_search)
     if [ -z "$results" ]; then echo "Aucun resultat sur anime-sama." ; return 1 ; fi
-    selected=$(echo "$results" | fzf_select "Selectionnez un anime : ")
+    selected=$(echo "$results" | cut -f1 | fzf_select "Selectionnez un anime : ")
     if [ -z "$selected" ]; then return 2 ; fi
-    search_urls=$(echo "$html" | grep "catalogue/" | sed 's/<a href="//g' | sed 's/">//g' | sed 's/^[[:space:]]*//' | sed 's/[[:space:]]*$//')
-    anime_slug=$(echo "$selected" | tr '[:upper:]' '[:lower:]' | tr ' ' '-')
-    anime_url=$(echo "$search_urls" | grep "/${anime_slug}[/\"]")
-    anime_html=$(curl -s "$anime_url")
-    saisons_noms=$(echo "$anime_html" | grep "panneauAnime" | grep -v "fonction\|nom\|url" | sed 's/panneauAnime("//g' | sed 's/", ".*$//' | sed 's/^[[:space:]]*//' | sed 's/[[:space:]]*$//')
-    saisons_slug=$(echo "$anime_html" | grep "panneauAnime" | grep -v "fonction\|nom\|url" | sed 's/.*", "//g' | sed 's/".*$//g' | sed 's/^[[:space:]]*//' | sed 's/[[:space:]]*$//')
-    saisons_selected=$(echo "$saisons_noms" | fzf_select "Selectionnez une saison : ")
-    if [ -z "$saisons_selected" ]; then return 2 ; fi
-    saison_line=$(echo "$saisons_noms" | grep -n "^${saisons_selected}$" | cut -d ':' -f1)
-    saison_url=$(echo "$saisons_slug" | sed -n "${saison_line}p" | sed "s/vostfr/$lang/g")
-    episodes_js=$(curl -sL "$anime_url$saison_url/episodes.js")
-    vidmoly_list=$(echo "$episodes_js" | grep -o "https://vidmoly[^']*")
-    sibnet_list=$(echo "$episodes_js" | grep -o "https://video\.sibnet\.ru[^']*")
-    ep_count=$(echo "$vidmoly_list" | grep -c "vidmoly")
-    if [ "$ep_count" -eq 0 ]; then ep_count=$(echo "$sibnet_list" | grep -c "sibnet") ; fi
-    if [ "$ep_count" -eq 0 ]; then echo "Aucun episode trouve sur anime-sama." ; return 1 ; fi
+    anime_path=$(echo "$results" | awk -F'\t' -v s="$selected" '$1 == s { print $2; exit }')
+    anime_slug=$(echo "$anime_path" | sed 's#/*$##; s#.*/##')
 
-    # Identifiant unique pour l'historique
-    id_prefix="animesama|${anime_slug}|${saison_url}"
+    saisons=$(http_get "$AS_BASE/catalogue/$anime_slug/" | animesama_parse_saisons)
+    if [ -z "$saisons" ]; then echo "Aucune saison trouvee sur anime-sama." ; return 1 ; fi
+    saison_nom=$(echo "$saisons" | cut -f1 | fzf_select "Selectionnez une saison : ")
+    if [ -z "$saison_nom" ]; then return 2 ; fi
+    saison_path=$(echo "$saisons" | awk -F'\t' -v s="$saison_nom" '$1 == s { print $2; exit }' | sed "s#vostfr#$lang#")
 
-    ep_selected=$(build_episode_list "$ep_count" "$id_prefix" | fzf_select_ansi "Selectionnez un episode : ")
-    if [ -z "$ep_selected" ]; then return 2 ; fi
-    ep_num=$(extract_ep_num "$ep_selected")
-
-    animesama_play_loop "$vidmoly_list" "$sibnet_list" "$ep_count" "$ep_num" "$id_prefix" "$selected"
+    animesama_pick_episode "$anime_slug" "$saison_path" "$selected"
 }
 
 resume_animesama() {
-    # $1 = ligne historique : animesama|slug|saison_url|ep|titre
+    # $1 = ligne historique : animesama|slug|saison_path|ep|titre
     slug=$(echo "$1" | cut -d'|' -f2)
-    saison_url=$(echo "$1" | cut -d'|' -f3)
+    saison_path=$(echo "$1" | cut -d'|' -f3)
     selected=$(echo "$1" | cut -d'|' -f5)
-    anime_url="https://anime-sama.to/catalogue/$slug/"
-    episodes_js=$(curl -sL "${anime_url}${saison_url}/episodes.js")
-    vidmoly_list=$(echo "$episodes_js" | grep -o "https://vidmoly[^']*")
-    sibnet_list=$(echo "$episodes_js" | grep -o "https://video\.sibnet\.ru[^']*")
-    ep_count=$(echo "$vidmoly_list" | grep -c "vidmoly")
-    if [ "$ep_count" -eq 0 ]; then ep_count=$(echo "$sibnet_list" | grep -c "sibnet") ; fi
-    if [ "$ep_count" -eq 0 ]; then echo "Impossible de reprendre (episodes introuvables)." ; return 1 ; fi
-
-    id_prefix="animesama|${slug}|${saison_url}"
-    ep_selected=$(build_episode_list "$ep_count" "$id_prefix" | fzf_select_ansi "Selectionnez un episode : ")
-    if [ -z "$ep_selected" ]; then return 2 ; fi
-    ep_num=$(extract_ep_num "$ep_selected")
-
-    animesama_play_loop "$vidmoly_list" "$sibnet_list" "$ep_count" "$ep_num" "$id_prefix" "$selected"
+    animesama_pick_episode "$slug" "$saison_path" "$selected"
 }

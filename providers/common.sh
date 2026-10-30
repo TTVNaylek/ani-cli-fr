@@ -1,35 +1,124 @@
 #!/bin/sh
 
-encode_title() {
-    echo "$1" | tr ' ' '+'
+UA="Mozilla/5.0 (X11; Linux x86_64; rv:140.0) Gecko/20100101 Firefox/140.0"
+
+# Telecharge une page. $1 = url, $2 = referer optionnel.
+http_get() {
+    if [ -n "$2" ]; then
+        curl -sL --connect-timeout 10 -m 30 -A "$UA" -e "$2" "$1"
+    else
+        curl -sL --connect-timeout 10 -m 30 -A "$UA" "$1"
+    fi
 }
 
 fzf_select() {
     fzf --reverse --prompt="$1" --height=40% --border
 }
 
-# Lecteur vidmoly : extrait le m3u8 depuis une URL embed et lance mpv.
-play_vidmoly() {
-    embed_url=$(echo "$1" | sed 's/vidmoly\.to/vidmoly.biz/g')
-    stream_url=$(curl -sL "$embed_url" | grep -o "https://prx[^']*master\.m3u8[^']*" | head -1)
-    if [ -n "$stream_url" ]; then
-        mpv "$stream_url"
-        return 0
-    fi
-    return 1
+# Decode le javascript "packed" (eval(function(p,a,c,k,e,d)...)) lu sur stdin.
+# Utilise par uqload, ansembed/voembed, smoothpre et la plupart des lecteurs actuels.
+unpack_packer() {
+    awk -v q="'" '
+    function enc(n, base,    s) {
+        s = ""
+        do { s = substr(digits, n % base + 1, 1) s; n = int(n / base) } while (n > 0)
+        return s
+    }
+    BEGIN { digits = "0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ" }
+    { doc = doc $0 "\n" }
+    END {
+        start = index(doc, "}(" q)
+        if (start == 0) exit
+        rest = substr(doc, start + 3)
+        if (!match(rest, q ",[0-9]+,[0-9]+," q)) exit
+        payload = substr(rest, 1, RSTART - 1)
+        split(substr(rest, RSTART + 2, RLENGTH - 4), num, ",")
+        keys = substr(rest, RSTART + RLENGTH)
+        keys = substr(keys, 1, index(keys, q) - 1)
+        n = split(keys, k, "|")
+        for (i = 0; i < num[2]; i++) {
+            e = enc(i, num[1])
+            w[e] = (i < n && k[i + 1] != "") ? k[i + 1] : e
+        }
+        out = ""
+        while (match(payload, /[0-9A-Za-z_]+/)) {
+            tok = substr(payload, RSTART, RLENGTH)
+            out = out substr(payload, 1, RSTART - 1) ((tok in w) ? w[tok] : tok)
+            payload = substr(payload, RSTART + RLENGTH)
+        }
+        out = out payload
+        gsub(/\\\047/, q, out)
+        print out
+    }'
 }
 
-# Lecteur generique via yt-dlp. $1 = url embed, $2 = referer optionnel.
-play_ytdlp() {
-    stream_url=$(yt-dlp -g "$1" 2>/dev/null | head -1)
-    if [ -n "$stream_url" ]; then
-        if [ -n "$2" ]; then
-            mpv --http-header-fields="Referer: $2" "$stream_url"
-        else
-            mpv "$stream_url"
-        fi
-        return 0
+# Premiere URL de flux (m3u8 ou mp4) trouvee sur stdin.
+extract_media_url() {
+    grep -oE "https?://[^\"' <>\\\\]+\.(m3u8|mp4)[^\"' <>\\\\]*" | head -1
+}
+
+# Streamtape : l'URL reelle est reconstruite en javascript a partir de morceaux.
+resolve_streamtape() {
+    line=$(http_get "$1" | grep "robotlink').innerHTML" | head -1)
+    [ -z "$line" ] && return 1
+    prefix=$(echo "$line" | sed "s/.*innerHTML = '\([^']*\)'.*/\1/")
+    chunk=$(echo "$line" | sed "s/.*+ ('\([^']*\)').*/\1/")
+    skip=$(echo "$line" | grep -o 'substring([0-9]*)' | tr -dc '0-9\n' | awk '{ s += $1 } END { print s + 0 }')
+    echo "https:${prefix}$(echo "$chunk" | cut -c$((skip + 1))-)&stream=1"
+}
+
+# Transforme une URL embed en URL de flux lisible par mpv.
+resolve_stream() {
+    case "$1" in
+        *streamtape.*)
+            resolve_streamtape "$1"
+            return ;;
+        *sibnet.ru*|*mail.ru*|*sendvid.com*)
+            yt-dlp -g --referer "$1" "$1" 2>/dev/null | head -1
+            return ;;
+    esac
+    page=$(http_get "$1")
+    stream=$(printf '%s\n' "$page" | extract_media_url)
+    if [ -z "$stream" ]; then
+        stream=$(printf '%s\n' "$page" | unpack_packer | extract_media_url)
     fi
+    if [ -z "$stream" ]; then
+        stream=$(yt-dlp -g "$1" 2>/dev/null | head -1)
+    fi
+    echo "$stream"
+}
+
+# Trie les lecteurs du plus fiable au moins fiable (lus sur stdin, un par ligne).
+rank_sources() {
+    awk 'NF && !seen[$0]++ {
+        r = 4
+        if ($0 ~ /ansembed|voembed|vidmoly/) r = 1
+        else if ($0 ~ /uqload/) r = 2
+        else if ($0 ~ /streamtape/) r = 3
+        else if ($0 ~ /sibnet|mail\.ru|sendvid/) r = 5
+        print r "\t" NR "\t" $0
+    }' | sort -n -k1,1 -k2,2 | cut -f3-
+}
+
+# Essaie chaque lecteur jusqu'a ce qu'un fonctionne. $1 = urls embed, $2 = titre.
+play_sources() {
+    sources=$(printf '%s\n' "$1" | rank_sources)
+    i=0
+    while [ -n "$sources" ]; do
+        src=$(printf '%s\n' "$sources" | head -1)
+        sources=$(printf '%s\n' "$sources" | sed '1d')
+        i=$((i + 1))
+        host=$(echo "$src" | awk -F/ '{ print $3 }')
+        echo "Lecteur $i ($host) en cours..."
+        stream=$(resolve_stream "$src")
+        if [ -n "$stream" ]; then
+            mpv --force-media-title="$2" --referrer="$src" --user-agent="$UA" "$stream"
+            # 0 = fin normale, 3 = lecture partielle, 4 = quitte par l'utilisateur
+            case "$?" in 0|3|4) return 0 ;; esac
+        fi
+        echo "Echec lecteur $i."
+    done
+    echo "Aucun lecteur disponible pour cet episode."
     return 1
 }
 
