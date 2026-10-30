@@ -1,5 +1,14 @@
 #!/bin/sh
-script_dir="$(dirname "$0")"
+# Suit les liens symboliques (ex: /usr/local/bin/ani-cli-fr -> clone git)
+self="$0"
+while [ -L "$self" ]; do
+    link=$(readlink "$self")
+    case "$link" in
+        /*) self="$link" ;;
+        *) self="$(dirname "$self")/$link" ;;
+    esac
+done
+script_dir="$(dirname "$self")"
 if [ -d "$script_dir/providers" ]; then
     # Mode developpement / clone git
     PROVIDERS_DIR="$script_dir/providers"
@@ -19,7 +28,7 @@ fi
 . "$PROVIDERS_DIR/animesama.sh"
 . "$PROVIDERS_DIR/voiranime.sh"
 
-version_number="0.3.2"
+version_number="0.4.0"
 lang="vostfr"
 
 while [ $# -gt 0 ]; do
@@ -88,12 +97,14 @@ $menu"
     fi
     [ -z "$query" ] && continue
     echo "Recherche de : $query"
+    # Codes de retour des fournisseurs : 0 = ok, 1 = echec, 2 = annule
     search_animesama "$query" "$lang"
-    code=$?
-    if [ "$code" -eq 1 ]; then
-    echo "Basculement sur un autre fournisseur"
+    if [ "$?" -eq 1 ]; then
+        echo "Basculement sur voir-anime..."
         search_voiranime "$query" "$lang"
+        if [ "$?" -eq 1 ]; then
+            echo "Aucun fournisseur disponible. Veuillez reessayer plus tard."
+        fi
     fi
-    echo "Aucun fournisseur disponible. Veuillez reessayer plus tard."
     query=""
 done
