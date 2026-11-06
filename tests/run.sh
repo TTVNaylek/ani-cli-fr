@@ -51,8 +51,12 @@ https://video.sibnet.ru/e" \
 http_get() {
     case "$1" in
         *streamtape*) cat "$fix/streamtape.html" ;;
+        *vide/episodes.js) cat "$fix/episodes_vide.js" ;;
         *episodes.js) cat "$fix/episodes.js" ;;
+        *anime-sama*/vide/) cat "$fix/animesama_empty.html" ;;
         *anime-sama*) cat "$fix/animesama_anime.html" ;;
+        *voir-anime*/doublons/) cat "$fix/voiranime_anime_doublons.html" ;;
+        *voir-anime*/sans-lecteur/) cat "$fix/voiranime_episode_sans_lecteur.html" ;;
         *voir-anime*/test/) cat "$fix/voiranime_anime.html" ;;
         *voir-anime*) cat "$fix/voiranime_episode.html" ;;
     esac
@@ -94,6 +98,56 @@ check "voir-anime : lecteurs extraits du JSON echappe, sans doublon" \
     "https://voembed.net/embed-xyz.html
 https://streamtape.com/e/abc" \
     "$(voiranime_sources "https://voir-anime.to/anime/test/test-01-vostfr/")"
+
+# Cas limites des parseurs (fixtures inventees, sans reseau)
+check "rank_sources : entree vide ou lignes vides -> rien" \
+    "" "$(printf '\n\n' | rank_sources)"
+
+check "rank_sources : ordre ansembed/voembed/vidmoly < uqload < streamtape < inconnu < sibnet/mail.ru/sendvid" \
+    "https://vidmoly.to/a
+https://uqload.vc/b
+https://streamtape.com/e/c
+https://autre.org/d
+https://sendvid.com/f
+https://my.mail.ru/e" \
+    "$(printf '%s\n' https://sendvid.com/f https://my.mail.ru/e https://autre.org/d https://streamtape.com/e/c https://uqload.vc/b https://vidmoly.to/a | rank_sources)"
+
+check "rank_sources : l'ordre d'arrivee departage les lecteurs de meme rang" \
+    "https://voembed.net/2
+https://ansembed.net/1" \
+    "$(printf '%s\n' https://voembed.net/2 https://ansembed.net/1 | rank_sources)"
+
+check "anime-sama : recherche, entites &amp; &#39; &quot; decodees (doublons conserves)" \
+    "Tom & Jerry${TAB}/catalogue/tom-et-jerry/
+L'Attaque \"finale\"${TAB}/catalogue/l-attaque/
+Tom & Jerry${TAB}/catalogue/tom-et-jerry/" \
+    "$(animesama_parse_search < "$fix/animesama_search_edge.html")"
+
+check "anime-sama : recherche sans resultat -> rien" \
+    "" "$(animesama_parse_search < "$fix/animesama_empty.html")"
+
+check "anime-sama : saisons, uniquement des exemples commentes -> rien" \
+    "" "$(animesama_parse_saisons < "$fix/animesama_empty.html")"
+
+check "anime-sama : episodes.js sans aucun lecteur actif -> rien" \
+    "" "$(animesama_episodes "https://anime-sama.to/catalogue/x/vide/")"
+
+check "voir-anime : recherche, entites &amp; &#039; &#8217; decodees, ordre conserve" \
+    "Tom & Jerry${TAB}https://voir-anime.to/anime/tom-jerry/
+L'Attaque (VF)${TAB}https://voir-anime.to/anime/l-attaque-vf/
+D'Art${TAB}https://voir-anime.to/anime/d-art/" \
+    "$(voiranime_parse_search < "$fix/voiranime_search.html")"
+
+check "voir-anime : recherche sans resultat -> rien" \
+    "" "$(echo '<html><body>Aucun resultat</body></html>' | voiranime_parse_search)"
+
+check "voir-anime : episodes, doublons d'URL supprimes puis ordre inverse" \
+    "https://voir-anime.to/anime/test/test-01-vostfr/
+https://voir-anime.to/anime/test/test-02-vostfr/" \
+    "$(voiranime_episode_urls "https://voir-anime.to/anime/doublons/")"
+
+check "voir-anime : episode sans lecteur -> rien" \
+    "" "$(voiranime_sources "https://voir-anime.to/anime/sans-lecteur/")"
 
 # Historique dans un dossier temporaire
 HISTORY_DIR=$(mktemp -d)
