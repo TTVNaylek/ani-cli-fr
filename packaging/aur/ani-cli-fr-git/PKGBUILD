@@ -1,0 +1,28 @@
+# Maintainer: TTVNaylek
+pkgname=ani-cli-fr-git
+pkgver=0.4.0
+pkgrel=1
+pkgdesc="CLI pour regarder des animes en VF/VOSTFR (anime-sama, voir-anime) - version git"
+arch=('any')
+url="https://github.com/TTVNaylek/ani-cli-fr"
+license=('MIT')
+depends=('curl' 'fzf' 'mpv' 'yt-dlp')
+makedepends=('git')
+provides=('ani-cli-fr')
+conflicts=('ani-cli-fr')
+source=("$pkgname::git+https://github.com/TTVNaylek/ani-cli-fr.git")
+sha256sums=('SKIP')
+
+pkgver() {
+    cd "$pkgname"
+    git describe --long --tags 2>/dev/null | sed 's/^v//;s/\([^-]*-g\)/r\1/;s/-/./g' ||
+        printf "r%s.%s" "$(git rev-list --count HEAD)" "$(git rev-parse --short HEAD)"
+}
+
+package() {
+    cd "$pkgname"
+    install -Dm755 ani-cli-fr "$pkgdir/usr/bin/ani-cli-fr"
+    install -Dm644 providers/*.sh -t "$pkgdir/usr/share/ani-cli-fr/providers"
+    install -Dm644 LICENSE "$pkgdir/usr/share/licenses/$pkgname/LICENSE"
+    install -Dm644 README.md "$pkgdir/usr/share/doc/$pkgname/README.md"
+}
