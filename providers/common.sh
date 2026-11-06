@@ -137,9 +137,9 @@ play_sources() {
             # 0 = fin normale, 3 = lecture partielle, 4 = quitte par l'utilisateur
             case "$mpv_code" in 0|3|4) return 0 ;; esac
         fi
-        echo "Echec lecteur $i."
+        echo "Echec lecteur $i ($host) : flux introuvable ou lecture impossible (--debug pour le detail)." >&2
     done
-    echo "Aucun lecteur disponible pour cet episode."
+    echo "Aucun lecteur disponible pour cet episode. Mettez a jour yt-dlp ou relancez avec --debug." >&2
     return 1
 }
 
