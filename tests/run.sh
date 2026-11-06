@@ -28,6 +28,18 @@ check() {
 
 echo "== Tests hors ligne"
 
+# check_dependencies : PATH factice sans fzf, puis avec tous les stubs
+stubs=$(mktemp -d)
+for c in curl mpv yt-dlp; do printf '#!/bin/sh\n' > "$stubs/$c"; chmod +x "$stubs/$c"; done
+out=$(PATH="$stubs" check_dependencies 2>&1); rc=$?
+check "check_dependencies retourne 1 sans fzf" "1" "$rc"
+case "$out" in *fzf*) r=ok ;; *) r=ko ;; esac
+check "check_dependencies mentionne fzf" "ok" "$r"
+printf '#!/bin/sh\n' > "$stubs/fzf"; chmod +x "$stubs/fzf"
+PATH="$stubs" check_dependencies >/dev/null 2>&1; rc=$?
+check "check_dependencies retourne 0 si tout est present" "0" "$rc"
+rm -rf "$stubs"
+
 check "unpack_packer decode le javascript packed" \
     "jwplayer('vplayer').setup({sources:[{file:\"https://cdn.example/hls2/master.m3u8?t=abc_DEF\"}],title:'x'});" \
     "$(unpack_packer < "$fix/packed.html")"
