@@ -35,12 +35,14 @@ while [ $# -gt 0 ]; do
     case "$1" in
         --vf|-vf) lang="vf" ; shift ;;
         --vostfr|-vostfr) lang="vostfr" ; shift ;;
+        --debug|-d) enable_debug ; shift ;;
         --help|-h)
-            echo "Usage: ani-cli-fr [--vf|--vostfr|--update|--change-log] <anime>"
+            echo "Usage: ani-cli-fr [--vf|--vostfr|--debug|--update|--change-log] <anime>"
             echo "Version: $version_number"
             echo ""
             echo "  --vf       Version francaise"
             echo "  --vostfr   VOSTFR (defaut)"
+            echo "  --debug    Affiche les URLs et codes de retour (sur stderr)"
             echo "  --update   Met a jour ani-cli-fr"
             echo "  --change-log   Affiche le journal des modifications"
             echo "  --help     Affiche cette aide"
