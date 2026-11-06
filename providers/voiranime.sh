@@ -67,6 +67,7 @@ search_voiranime() {
     results=""
     page=1
     while [ "$page" -le 5 ]; do
+        debug "recherche voir-anime: $VA_BASE/?s=$title&paged=$page"
         page_results=$(curl -sL --connect-timeout 10 -m 30 -A "$UA" -G --data-urlencode "s=$title" \
             -d post_type=wp-manga -d paged="$page" "$VA_BASE/" | voiranime_parse_search)
         [ -z "$page_results" ] && break

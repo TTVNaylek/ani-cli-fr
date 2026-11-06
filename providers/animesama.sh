@@ -78,6 +78,7 @@ animesama_pick_episode() {
 search_animesama() {
     title="$1"
     lang="$2"
+    debug "recherche anime-sama: $AS_BASE/catalogue/?search=$title"
     results=$(curl -sL --connect-timeout 10 -m 30 -A "$UA" -G --data-urlencode "search=$title" "$AS_BASE/catalogue/" | animesama_parse_search)
     if [ -z "$results" ]; then echo "Aucun resultat sur anime-sama." ; return 1 ; fi
     selected=$(echo "$results" | cut -f1 | fzf_select "Selectionnez un anime : ")

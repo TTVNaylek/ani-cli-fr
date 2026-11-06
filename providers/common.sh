@@ -2,8 +2,25 @@
 
 UA="Mozilla/5.0 (X11; Linux x86_64; rv:140.0) Gecko/20100101 Firefox/140.0"
 
+DEBUG=0
+
+# Active le mode debug. Passe par une fonction pour que la variable reste
+# dans common.sh (shellcheck ne voit pas son usage depuis le script appelant).
+enable_debug() {
+    DEBUG=1
+}
+
+# Message de diagnostic, affiche uniquement avec --debug.
+# Sur stderr (>&2) pour ne jamais polluer les valeurs capturees avec $(...).
+debug() {
+    if [ "$DEBUG" = "1" ]; then
+        echo "[debug] $*" >&2
+    fi
+}
+
 # Telecharge une page. $1 = url, $2 = referer optionnel.
 http_get() {
+    debug "GET $1"
     if [ -n "$2" ]; then
         curl -sL --connect-timeout 10 -m 30 -A "$UA" -e "$2" "$1"
     else
@@ -69,6 +86,7 @@ resolve_streamtape() {
 
 # Transforme une URL embed en URL de flux lisible par mpv.
 resolve_stream() {
+    debug "resolve_stream: $1"
     case "$1" in
         *streamtape.*)
             resolve_streamtape "$1"
@@ -111,10 +129,13 @@ play_sources() {
         host=$(echo "$src" | awk -F/ '{ print $3 }')
         echo "Lecteur $i ($host) en cours..."
         stream=$(resolve_stream "$src")
+        debug "flux: ${stream:-<vide>}"
         if [ -n "$stream" ]; then
             mpv --force-media-title="$2" --referrer="$src" --user-agent="$UA" "$stream"
+            mpv_code=$?
+            debug "mpv code de retour: $mpv_code"
             # 0 = fin normale, 3 = lecture partielle, 4 = quitte par l'utilisateur
-            case "$?" in 0|3|4) return 0 ;; esac
+            case "$mpv_code" in 0|3|4) return 0 ;; esac
         fi
         echo "Echec lecteur $i."
     done
