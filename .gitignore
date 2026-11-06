@@ -6,3 +6,6 @@ Thumbs.db
 *.swp
 *~
 .vscode/
+
+# Worktrees et config Claude Code
+.claude/
