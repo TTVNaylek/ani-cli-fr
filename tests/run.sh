@@ -45,6 +45,23 @@ version_expected="ani-cli-fr $(sed -n 's/^version_number="\(.*\)"/\1/p' "$root/a
 check "--version affiche la version" "$version_expected" "$(PATH=/usr/bin:/bin sh "$root/ani-cli-fr" --version)"
 check "-v est un alias de --version" "$version_expected" "$(PATH=/usr/bin:/bin sh "$root/ani-cli-fr" -v)"
 
+# --clear-history : fzf factice qui repond Oui, puis Non. HOME temporaire pour
+# ne jamais toucher au vrai historique.
+fakehome=$(mktemp -d)
+stubs=$(mktemp -d)
+for c in curl mpv yt-dlp; do printf '#!/bin/sh\n' > "$stubs/$c"; chmod +x "$stubs/$c"; done
+mkdir -p "$fakehome/.local/state/ani-cli-fr"
+echo "animesama|x|saison1/vostfr|1|X" > "$fakehome/.local/state/ani-cli-fr/history"
+printf '#!/bin/sh\necho Non\n' > "$stubs/fzf"; chmod +x "$stubs/fzf"
+HOME="$fakehome" PATH="$stubs:/usr/bin:/bin" sh "$root/ani-cli-fr" --clear-history >/dev/null 2>&1
+if [ -f "$fakehome/.local/state/ani-cli-fr/history" ]; then r=garde; else r=efface; fi
+check "--clear-history : reponse Non garde l'historique" "garde" "$r"
+printf '#!/bin/sh\necho Oui\n' > "$stubs/fzf"
+HOME="$fakehome" PATH="$stubs:/usr/bin:/bin" sh "$root/ani-cli-fr" --clear-history >/dev/null 2>&1
+if [ -f "$fakehome/.local/state/ani-cli-fr/history" ]; then r=garde; else r=efface; fi
+check "--clear-history : reponse Oui efface l'historique" "efface" "$r"
+rm -rf "$fakehome" "$stubs"
+
 check "unpack_packer decode le javascript packed" \
     "jwplayer('vplayer').setup({sources:[{file:\"https://cdn.example/hls2/master.m3u8?t=abc_DEF\"}],title:'x'});" \
     "$(unpack_packer < "$fix/packed.html")"
