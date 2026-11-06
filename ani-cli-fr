@@ -30,22 +30,25 @@ fi
 
 version_number="0.4.0"
 lang="vostfr"
+clear_only=0
 
 while [ $# -gt 0 ]; do
     case "$1" in
         --vf|-vf) lang="vf" ; shift ;;
         --vostfr|-vostfr) lang="vostfr" ; shift ;;
         --debug|-d) enable_debug ; shift ;;
+        --clear-history) clear_only=1 ; shift ;;
         --version|-v)
             echo "ani-cli-fr $version_number"
             exit 0 ;;
         --help|-h)
-            echo "Usage: ani-cli-fr [--vf|--vostfr|--debug|--version|--update|--change-log] <anime>"
+            echo "Usage: ani-cli-fr [--vf|--vostfr|--debug|--clear-history|--version|--update|--change-log] <anime>"
             echo "Version: $version_number"
             echo ""
             echo "  --vf       Version francaise"
             echo "  --vostfr   VOSTFR (defaut)"
             echo "  --debug    Affiche les URLs et codes de retour (sur stderr)"
+            echo "  --clear-history   Vide l'historique (avec confirmation)"
             echo "  --version  Affiche la version"
             echo "  --update   Met a jour ani-cli-fr"
             echo "  --change-log   Affiche le journal des modifications"
@@ -68,6 +71,12 @@ while [ $# -gt 0 ]; do
 done
 
 check_dependencies || exit 1
+
+# Apres check_dependencies : clear_history utilise fzf pour la confirmation.
+if [ "$clear_only" -eq 1 ]; then
+    clear_history
+    exit 0
+fi
 
 query="$*"
 
