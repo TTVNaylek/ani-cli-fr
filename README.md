@@ -1,5 +1,7 @@
 # ani-cli-fr
 
+[![ShellCheck](https://github.com/TTVNaylek/ani-cli-fr/actions/workflows/shellcheck.yml/badge.svg)](https://github.com/TTVNaylek/ani-cli-fr/actions/workflows/shellcheck.yml)
+
 Un outil en ligne de commande pour rechercher et regarder des animés en **VF** et **VOSTFR**, directement depuis le terminal. Inspiré de [ani-cli](https://github.com/pystardust/ani-cli), mais pensé pour les sources francophones.
 
 ## Fonctionnalités
@@ -102,6 +104,14 @@ Les menus se naviguent avec `fzf` : flèches ou frappe au clavier pour filtrer, 
 sh tests/run.sh           # tests hors ligne (parsing, lecteurs, historique)
 sh tests/run.sh --online  # + verifie que les sites et lecteurs repondent encore
 ```
+
+## Dépannage
+
+- **Une source ne répond plus** : le fallback bascule automatiquement sur l'autre source. Si les deux échouent, réessaie plus tard ou lance `ani-cli-fr --update` pour récupérer la dernière version.
+- **Un lecteur ne fonctionne pas** : la cascade essaie automatiquement les lecteurs suivants. Si aucun ne passe, mets à jour `yt-dlp` (les hébergeurs changent souvent).
+- **Dépendance manquante** : vérifie que `mpv`, `yt-dlp`, `curl` et `fzf` sont installés (voir [Installation des dépendances](#installation-des-dépendances)).
+- **`mpv` sous Windows / WSL** : utilise `mpv` côté Linux dans WSL (par exemple `sudo apt install mpv`) ; le `mpv.exe` natif Windows n'est pas pris en charge.
+- **Diagnostic** : lance `sh tests/run.sh --online` pour vérifier quels sites et lecteurs répondent encore.
 
 ## Compatibilité
 
