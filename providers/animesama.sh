@@ -65,7 +65,10 @@ animesama_play_loop() {
 animesama_pick_episode() {
     eps_table=$(animesama_episodes "$AS_BASE/catalogue/$1/$2/")
     ep_count=$(echo "$eps_table" | awk -F'\t' '$1 > m { m = $1 } END { print m + 0 }')
-    if [ "$ep_count" -eq 0 ]; then echo "Aucun episode trouve sur anime-sama ($2)." ; return 1 ; fi
+    if [ "$ep_count" -eq 0 ]; then
+        echo "Aucun episode trouve sur anime-sama ($2) : episodes.js a peut-etre change de format. Relancez avec --debug." >&2
+        return 1
+    fi
 
     id_prefix="animesama|$1|$2"
     ep_selected=$(build_episode_list "$ep_count" "$id_prefix" | fzf_select_ansi "Selectionnez un episode : ")
@@ -80,14 +83,20 @@ search_animesama() {
     lang="$2"
     debug "recherche anime-sama: $AS_BASE/catalogue/?search=$title"
     results=$(curl -sL --connect-timeout 10 -m 30 -A "$UA" -G --data-urlencode "search=$title" "$AS_BASE/catalogue/" | animesama_parse_search)
-    if [ -z "$results" ]; then echo "Aucun resultat sur anime-sama." ; return 1 ; fi
+    if [ -z "$results" ]; then
+        echo "Aucun resultat sur anime-sama (site hors ligne, ou HTML change ?). Relancez avec --debug pour voir les URLs." >&2
+        return 1
+    fi
     selected=$(echo "$results" | cut -f1 | fzf_select "Selectionnez un anime : ")
     if [ -z "$selected" ]; then return 2 ; fi
     anime_path=$(echo "$results" | awk -F'\t' -v s="$selected" '$1 == s { print $2; exit }')
     anime_slug=$(echo "$anime_path" | sed 's#/*$##; s#.*/##')
 
     saisons=$(http_get "$AS_BASE/catalogue/$anime_slug/" | animesama_parse_saisons)
-    if [ -z "$saisons" ]; then echo "Aucune saison trouvee sur anime-sama." ; return 1 ; fi
+    if [ -z "$saisons" ]; then
+        echo "Aucune saison trouvee sur anime-sama : la page a peut-etre change. Relancez avec --debug." >&2
+        return 1
+    fi
     saison_nom=$(echo "$saisons" | cut -f1 | fzf_select "Selectionnez une saison : ")
     if [ -z "$saison_nom" ]; then return 2 ; fi
     saison_path=$(echo "$saisons" | awk -F'\t' -v s="$saison_nom" '$1 == s { print $2; exit }' | sed "s#vostfr#$lang#")

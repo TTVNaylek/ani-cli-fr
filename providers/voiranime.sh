@@ -49,7 +49,10 @@ voiranime_play_loop() {
 # $1 = slug, $2 = titre
 voiranime_pick_episode() {
     ep_urls=$(voiranime_episode_urls "$VA_BASE/anime/$1/")
-    if [ -z "$ep_urls" ]; then echo "Aucun episode trouve sur voir-anime." ; return 1 ; fi
+    if [ -z "$ep_urls" ]; then
+        echo "Aucun episode trouve sur voir-anime : le HTML a peut-etre change. Relancez avec --debug." >&2
+        return 1
+    fi
     ep_count=$(echo "$ep_urls" | wc -l | tr -d ' ')
 
     id_prefix="voiranime|$1"
@@ -81,7 +84,10 @@ $page_results"
     else
         results=$(echo "$results" | grep -v "(VF)")
     fi
-    if [ -z "$results" ]; then echo "Aucun resultat sur voir-anime." ; return 1 ; fi
+    if [ -z "$results" ]; then
+        echo "Aucun resultat sur voir-anime (site hors ligne, ou HTML change ?). Relancez avec --debug pour voir les URLs." >&2
+        return 1
+    fi
     selected=$(echo "$results" | cut -f1 | fzf_select "Selectionnez un anime : ")
     if [ -z "$selected" ]; then return 2 ; fi
     anime_url=$(echo "$results" | awk -F'\t' -v s="$selected" '$1 == s { print $2; exit }')
