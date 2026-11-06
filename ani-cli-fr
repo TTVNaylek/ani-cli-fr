@@ -61,6 +61,8 @@ while [ $# -gt 0 ]; do
     esac
 done
 
+check_dependencies || exit 1
+
 query="$*"
 
 while true; do
