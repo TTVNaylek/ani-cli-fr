@@ -28,6 +28,35 @@ http_get() {
     fi
 }
 
+# Verifie que curl, fzf, mpv et yt-dlp sont installes (command -v : builtin POSIX,
+# contrairement a which). Sinon affiche la liste et la commande d'installation
+# adaptee a la distribution, puis retourne 1.
+check_dependencies() {
+    missing=""
+    for dep in curl fzf mpv yt-dlp; do
+        command -v "$dep" >/dev/null 2>&1 || missing="$missing $dep"
+    done
+    [ -z "$missing" ] && return 0
+
+    echo "Dependances manquantes :$missing" >&2
+    if [ "$(uname -s)" = "Darwin" ]; then
+        echo "Installation : brew install$missing" >&2
+        return 1
+    fi
+    distro=""
+    if [ -r /etc/os-release ]; then
+        # sous-shell : ne pollue pas l'environnement avec les variables d'os-release
+        distro=$(. /etc/os-release && echo "$ID $ID_LIKE")
+    fi
+    case " $distro " in
+        *" arch "*|*" manjaro "*) echo "Installation : sudo pacman -S$missing" >&2 ;;
+        *" debian "*|*" ubuntu "*|*" linuxmint "*) echo "Installation : sudo apt install$missing" >&2 ;;
+        *" fedora "*) echo "Installation : sudo dnf install$missing" >&2 ;;
+        *) echo "Installez-les avec le gestionnaire de paquets de votre systeme :$missing" >&2 ;;
+    esac
+    return 1
+}
+
 fzf_select() {
     fzf --reverse --prompt="$1" --height=40% --border
 }
