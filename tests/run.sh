@@ -40,6 +40,11 @@ PATH="$stubs" check_dependencies >/dev/null 2>&1; rc=$?
 check "check_dependencies retourne 0 si tout est present" "0" "$rc"
 rm -rf "$stubs"
 
+# --version / -v : une ligne "ani-cli-fr X.Y.Z", sans exiger les dependances
+version_expected="ani-cli-fr $(sed -n 's/^version_number="\(.*\)"/\1/p' "$root/ani-cli-fr")"
+check "--version affiche la version" "$version_expected" "$(PATH=/usr/bin:/bin sh "$root/ani-cli-fr" --version)"
+check "-v est un alias de --version" "$version_expected" "$(PATH=/usr/bin:/bin sh "$root/ani-cli-fr" -v)"
+
 check "unpack_packer decode le javascript packed" \
     "jwplayer('vplayer').setup({sources:[{file:\"https://cdn.example/hls2/master.m3u8?t=abc_DEF\"}],title:'x'});" \
     "$(unpack_packer < "$fix/packed.html")"
